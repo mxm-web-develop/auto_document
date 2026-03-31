@@ -4,51 +4,25 @@
 
 ---
 
-## 快速开始
+## 安装
 
 ```bash
-# 1. 克隆项目
+# 克隆
 git clone https://github.com/mxm-web-develop/auto_document.git
-cd auto_document
+cd docs-generator
 
-# 2. 安装依赖
-npm install
+# 安装依赖（--ignore-scripts 跳过 pandoc 二进制下载，避免 404）
+npm install --ignore-scripts
 
-#  3. 编辑配置：填入你要聚合的项目路径
-# 参考下方「config.json 完整字段」章节
-
-# 4. 启动文档站
-docs-gen
+# 链接为全局命令（可选）
+npm link
 ```
 
-> 如果 `docs-gen` 命令不可用，请使用：
-> ```bash
-> npm run docs-gen
-> ```
+> ⚠️ `pandocjs` 的 postinstall 会尝试下载 Pandoc 二进制包，容易 404。用 `--ignore-scripts` 跳过即可，核心功能不依赖它。
 
 ---
 
-## 命令
-
-| 命令 | 说明 |
-|---|---|
-| `docs-gen` | 启动开发服务器（默认端口 3000） |
-| `docs-gen build` | 构建生产版本，输出到 `_outputs/` |
-| `docs-gen preview` | 预览已构建的文档站 |
-| `docs-gen --port 8080` | 指定端口 |
-| `docs-gen --help` | 显示帮助信息 |
-
-也可通过 npm scripts 调用：
-
-```bash
-npm run start      # 等价于 docs-gen（使用 config.json 配置）
-npm run preview    # 等价于 docs-gen preview
-npm run test:run   # 运行脚本（开发调试用）
-```
-
----
-
-## config.json
+## 配置
 
 在项目根目录创建 `config.json`：
 
@@ -78,22 +52,50 @@ npm run test:run   # 运行脚本（开发调试用）
 }
 ```
 
-### 完整字段说明
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `projects[].name` | ✅ | 内部标识，不可重复 |
+| `projects[].path` | ✅ | 目标项目的**绝对路径** |
+| `projects[].title` | ✅ | 导航中显示的名称 |
+| `projects[].enabled` | ❌ | 默认 true，设为 false 可跳过 |
 
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `entryName` | `string` | `"doc_asset"` | 入口文件夹名称（可自定义，如 `"docs"`） |
-| `projects` | `Project[]` | `[]` | 要聚合的项目列表 |
-| `projects[].name` | `string` | — | 项目内部标识（不可重复） |
-| `projects[].path` | `string` | — | 项目**绝对路径** |
-| `projects[].title` | `string` | — | 导航中显示的名称 |
-| `projects[].description` | `string` | `""` | 项目描述 |
-| `projects[].version` | `string` | `""` | 版本号 |
-| `projects[].enabled` | `boolean` | `true` | 是否启用 |
-| `output.dir` | `string` | `"_outputs"` | 构建输出目录 |
-| `output.cachesDir` | `string` | `"_caches"` | 缓存目录 |
-| `server.port` | `number` | `3000` | 开发服务器端口 |
-| `nav.title` | `string` | `"文档中心"` | 站点标题 |
+---
+
+## 使用
+
+```bash
+docs-gen              # 开发服务器（默认端口 3000）
+docs-gen build        # 构建生产版本 → _outputs/
+docs-gen preview      # 预览已构建的版本
+docs-gen --port 8080  # 指定端口
+docs-gen --help       # 帮助
+```
+
+**不用 `docs-gen` 命令？用 npm script：**
+
+```bash
+npm run start    # 等价于 docs-gen
+npm run preview  # 等价于 docs-gen preview
+npm run build    # 仅 TypeScript 编译 → dist/
+```
+
+---
+
+## 工作原理
+
+```
+config.json → 读取项目列表
+     ↓
+Selector → 扫描每个项目的 README.md 和 doc_assets/
+     ↓
+ViteTemplateGenerator → 运行时生成 _VITETEMPLATE/（首次或缺失时）
+     ↓
+ViteBuilder → 注入文档数据 → vite build
+     ↓
+_outputs/ → 最终产物（可部署到任意静态托管）
+```
+
+> **`_VITETEMPLATE/` 是运行时自动生成的，勿提交到 git。** 首次运行 `docs-gen` 时会自动创建并安装依赖。
 
 ---
 
@@ -101,50 +103,43 @@ npm run test:run   # 运行脚本（开发调试用）
 
 ```
 docs-generator/
-├── config.json              # 配置文件（用户编辑）
+├── config.json                      # ← 你要编辑的配置文件
+├── README.md                       # 你在这里
 ├── src/
-│   ├── index.ts            # API 入口（runGenerator）
-│   ├── config.ts           # 配置加载 + Zod 校验
-│   ├── cli.ts              # CLI 入口
-│   ├── run-test.ts         # 开发调试入口
-│   └── core/               # 核心模块
-│       ├── Selector.ts     # 入口文件夹识别（entryName 参数化）
-│       ├── Collector.ts    # 文档数据收集
-│       ├── Renderer.ts     # 文档渲染
-│       ├── ViteBuilder.ts  # Vite 模板管理
-│       └── ViteTemplateGenerator.ts
-├── _VITETEMPLATE/          # Vite 模板（运行时生成）
-├── dist/                   # 编译产物
+│   ├── index.ts                    # API 入口
+│   ├── cli.ts                      # CLI 入口
+│   ├── run-test.ts                 # 开发调试入口
+│   └── core/
+│       ├── Selector.ts             # 扫描 README + doc_assets
+│       ├── Collector.ts            # 文档数据收集
+│       ├── Renderer.ts            # 渲染
+│       ├── ViteBuilder.ts         # 构建管理
+│       └── ViteTemplateGenerator.ts  # 生成 _VITETEMPLATE/
+├── _VITETEMPLATE/                  # 自动生成，勿提交
+├── dist/                           # npm run build 产物
 └── package.json
 ```
 
 ---
 
-## 开发
+## 常见问题
 
+**Q: `docs-gen` command not found？**
 ```bash
-# 构建（TypeScript → dist/）
-npm run build
-
-# 开发模式（监听文件变化，自动重载）
-npm run dev
-
-# 直接运行调试脚本（使用 config.json）
-npm run test:run
+npm link
+# 或直接
+node dist/cli.js
 ```
 
----
+**Q: `pandocjs` 下载失败（404）？**
+```bash
+npm install --ignore-scripts
+```
+Pandoc 二进制不影响核心功能，可安全跳过。
 
-## API 使用
-
-```typescript
-import { runGenerator } from '@mxmweb/docs-generator';
-
-await runGenerator([
-  {
-    absolute_path: '/path/to/project',
-    title: '我的项目',
-    description: '项目描述',
-  }
-], 'dev', { port: 3000, entryName: 'doc_asset' });
+**Q: `_VITETEMPLATE/node_modules` 报错？**
+说明 node_modules 不完整。删除整个 `_VITETEMPLATE/` 目录，下次运行 `docs-gen` 会重新生成：
+```bash
+rm -rf _VITETEMPLATE/
+docs-gen
 ```
