@@ -1,0 +1,14 @@
+{
+  "entryName": "doc_asset",
+  "projects": [],
+  "output": {
+    "dir": "_outputs",
+    "cachesDir": "_caches"
+  },
+  "server": {
+    "port": 3000
+  },
+  "nav": {
+    "title": "文档中心"
+  }
+}

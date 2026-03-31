@@ -1,0 +1,10 @@
+# Generated content (regenerated at runtime)
+public/md/
+
+# Dependencies
+node_modules/
+dist/
+
+# Lock files (use npm or pnpm, not both)
+package-lock.json
+yarn.lock
